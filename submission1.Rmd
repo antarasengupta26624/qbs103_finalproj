@@ -1,0 +1,101 @@
+---
+title: "submission1"
+author: "Antara Sengupta"
+date: "2024-07-27"
+output: html_document
+---
+
+## Loading in necessary packages
+```{r loading packages}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tibble)
+library(tidyr)
+library(dplyr)
+```
+
+## Loading Data
+
+```{r loading data}
+#loading in the two separate datasets provided to us (metadata & gene exppression data)
+series <- read.csv("data/QBS103_GSE157103_series_matrix.csv")
+genes <- read.csv("data/QBS103_GSE157103_genes.csv")
+
+#displaying first few rows of each dataframe to get familiarized with the data
+head(series)
+head(genes)
+```
+## Formatting and cleaning data
+
+```{r adjusting dataframes}
+#goal is to merge both dataframes - we can merge them based on participant ID
+
+#transposing the genes df and turning it back to a df so it can have 'participant_id' as rows (the same rows as the metadata)
+genes_transposed <- as.data.frame(t(genes))
+
+# getting rid of the x row because it has redundant info (same values as column names)
+genes_transposed <- genes_transposed[-1, ]
+
+#setting the row name to participant id so we can use this column to merge with metadata
+genes_transposed <- rownames_to_column(genes_transposed, var = "participant_id")
+
+#reshaping the gene so that genes and expression can be their own columns using pivot_longer
+#used this source to learn how to implement pivot_longer: https://tidyr.tidyverse.org/reference/pivot_longer.html
+genes_long <- genes_transposed %>%
+   pivot_longer(
+     cols = -participant_id,  #accessing all columns with the exception of participant_id because it is the only column without gene info
+     names_to = "gene", #setting name column to gene
+     values_to = "expression"  #setting values column to expression
+   )
+
+#merging long gene data and series metadata to become one dataframe
+all_data <- merge(genes_long, series, by = "participant_id") #merging it on 'participant_id' column
+
+#taking a look at the new comprehensive dataframe
+head(all_data)
+```
+
+
+## Choosing focuses of interests: genes, continuous covariates and categorical covariates
+#- gene: A1BG
+#- continuous covariate: ferritin
+#- categorical covariate: disease status, gender or icu status 
+```{r subsetting dataframe}
+#subsetting the dataframe so that it only contains columns that I want to perform further analysis on 
+#using select to subset https://www.educative.io/answers/what-is-the-select-function-in-r
+covid_data <- all_data %>% select(participant_id, gene,expression, ferritin.ng.ml., sex, disease_status)
+
+#taking a look at the new subsetted data frame
+head(covid_data)
+```
+
+## Plotting gene expression (histogram)
+```{r histogram}
+# Filter for gene A1BG and select expression column
+a1bg_data <- df %>%
+  filter(gene == "A1BG") %>%
+  select(expression) %>%
+  mutate(expression = as.numeric(expression))  # Ensure expression is numeric
+
+# Plot histogram
+ggplot(a1bg_data, aes(x = expression)) +
+  geom_histogram(binwidth = 0.5, color = "black", fill = "blue") +
+  labs(title = "Histogram of Gene Expression for A1BG",
+       x = "Expression",
+       y = "Frequency") +
+  theme_minimal()
+
+```
+
+## Plotting gene expression vs. ferritin (scatterplot)
+
+```{r scatterplot}
+
+```
+
+## Plotting gene expression vs. sex and disease status (boxplot)
+
+```{r boxplot}
+
+```
