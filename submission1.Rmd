@@ -2,7 +2,9 @@
 title: "submission1"
 author: "Antara Sengupta"
 date: "2024-07-27"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ## Loading in necessary packages
@@ -33,6 +35,9 @@ head(genes)
 
 #transposing the genes df and turning it back to a df so it can have 'participant_id' as rows (the same rows as the metadata)
 genes_transposed <- as.data.frame(t(genes))
+
+#assigning row x with gene name to be the column headers
+colnames(genes_transposed) <- as.character(genes_transposed[1, ])
 
 # getting rid of the x row because it has redundant info (same values as column names)
 genes_transposed <- genes_transposed[-1, ]
@@ -72,8 +77,8 @@ head(covid_data)
 
 ## Plotting gene expression (histogram)
 ```{r histogram}
-# Filter for gene A1BG and select expression column
-a1bg_data <- df %>%
+library(tidyverse)
+a1bg_data <- covid_data %>%
   filter(gene == "A1BG") %>%
   select(expression) %>%
   mutate(expression = as.numeric(expression))  # Ensure expression is numeric
@@ -85,14 +90,14 @@ ggplot(a1bg_data, aes(x = expression)) +
        x = "Expression",
        y = "Frequency") +
   theme_minimal()
-a1bg_data
+head(a1bg_data)
 ```
 
 ## Plotting gene expression vs. ferritin (scatterplot)
 
 ```{r scatterplot}
 # subsetting the data so that it only contains rows where gene = A1BG and also the sex variable so it gets rid of the unknown rows
-data <- df %>%
+data <- covid_data %>%
   filter(gene == "A1BG")
 ggplot(data, aes(x = as.numeric(expression), y = as.numeric(ferritin.ng.ml.))) +
     geom_point() + 
