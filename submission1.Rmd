@@ -85,17 +85,27 @@ ggplot(a1bg_data, aes(x = expression)) +
        x = "Expression",
        y = "Frequency") +
   theme_minimal()
-
+a1bg_data
 ```
 
 ## Plotting gene expression vs. ferritin (scatterplot)
 
 ```{r scatterplot}
-
+# subsetting the data so that it only contains rows where gene = A1BG and also the sex variable so it gets rid of the unknown rows
+data <- df %>%
+  filter(gene == "A1BG")
+ggplot(data, aes(x = as.numeric(expression), y = as.numeric(ferritin.ng.ml.))) +
+    geom_point() + 
+  labs(title = "Observing A1BG Expression vs. Ferritin Levels in Covid Patients", x= "A1BG Expression" ,y = "Ferritin (ng/ml)")
+#convert both ferritin + expression to numeric
+#filter unknown variables and make them null/NA and then drop all the nulls
+typeof(data$expression)
+#for presentation can just describe the methods i used to make the graph and general interpretation
 ```
 
 ## Plotting gene expression vs. sex and disease status (boxplot)
 
 ```{r boxplot}
-
+ggplot(data, aes(x = disease_status, y = as.numeric(expression), fill = sex)) +
+  geom_boxplot() 
 ```
