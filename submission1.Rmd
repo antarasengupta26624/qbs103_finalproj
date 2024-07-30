@@ -5,6 +5,7 @@ date: "2024-07-27"
 output:
   pdf_document: default
   html_document: default
+always_allow_html: true
 ---
 
 ## Loading in necessary packages
@@ -20,33 +21,34 @@ library(dplyr)
 ## Loading Data
 
 ```{r loading data}
-#loading in the two separate datasets provided to us (metadata & gene exppression data)
+# loading in the two separate datasets provided to us (metadata & gene exppression data)
 series <- read.csv("data/QBS103_GSE157103_series_matrix.csv")
 genes <- read.csv("data/QBS103_GSE157103_genes.csv")
 
-#displaying first few rows of each dataframe to get familiarized with the data
+# displaying first few rows of each dataframe to get familiarized with the data
 head(series)
 head(genes)
 ```
 ## Formatting and cleaning data
 
 ```{r adjusting dataframes}
-#goal is to merge both dataframes - we can merge them based on participant ID
+# goal is to merge both dataframes - we can merge them based on participant ID
 
-#transposing the genes df and turning it back to a df so it can have 'participant_id' as rows (the same rows as the metadata)
+# transposing the genes df and turning it back to a df so it can have 'participant_id' as rows (the same rows as the metadata)
 genes_transposed <- as.data.frame(t(genes))
 
-#assigning row x with gene name to be the column headers
+# assigning row x with gene name to be the column headers
 colnames(genes_transposed) <- as.character(genes_transposed[1, ])
 
 # getting rid of the x row because it has redundant info (same values as column names)
 genes_transposed <- genes_transposed[-1, ]
 
-#setting the row name to participant id so we can use this column to merge with metadata
+# setting the row name to participant id so we can use this column to merge with metadata
+# used this source to find the rownames_to_column function https://forum.posit.co/t/rstudio-rownames-to-column-how-to-find-name-of-first-column-to-use-in-this-function/113079
 genes_transposed <- rownames_to_column(genes_transposed, var = "participant_id")
 
-#reshaping the gene so that genes and expression can be their own columns using pivot_longer
-#used this source to learn how to implement pivot_longer: https://tidyr.tidyverse.org/reference/pivot_longer.html
+# reshaping the gene so that genes and expression can be their own columns using pivot_longer
+# used this source to learn how to implement pivot_longer: https://tidyr.tidyverse.org/reference/pivot_longer.html
 genes_long <- genes_transposed %>%
    pivot_longer(
      cols = -participant_id,  #accessing all columns with the exception of participant_id because it is the only column without gene info
@@ -54,20 +56,31 @@ genes_long <- genes_transposed %>%
      values_to = "expression"  #setting values column to expression
    )
 
-#merging long gene data and series metadata to become one dataframe
+# merging long gene data and series metadata to become one dataframe
 all_data <- merge(genes_long, series, by = "participant_id") #merging it on 'participant_id' column
 
-#taking a look at the new comprehensive dataframe
+# taking a look at the new comprehensive dataframe
 head(all_data)
 ```
 
 
 ## Choosing focuses of interests: genes, continuous covariates and categorical covariates
-#- gene: A1BG
-#- continuous covariate: ferritin
-#- categorical covariate: disease status, gender or icu status 
+gene: AASDHPPT
+continuous covariate: ferritin levels
+categorical covariate: disease status, gender 
 ```{r subsetting dataframe}
 #subsetting the dataframe so that it only contains columns that I want to perform further analysis on 
+
+
+#getting rid of all unknown values in the data
+#unique(all_data$ferritin.ng.ml.)
+#unique(all_data$Age)
+#used the above lines to look at unique values, and saw that unknown is formatted as " unknown", so will replace that with NA
+all_data[all_data == " unknown"] <- NA
+
+# Drop rows with any NA values
+all_data <- na.omit(all_data)
+
 #using select to subset https://www.educative.io/answers/what-is-the-select-function-in-r
 covid_data <- all_data %>% select(participant_id, gene,expression, ferritin.ng.ml., sex, disease_status)
 
@@ -78,39 +91,64 @@ head(covid_data)
 ## Plotting gene expression (histogram)
 ```{r histogram}
 library(tidyverse)
-a1bg_data <- covid_data %>%
-  filter(gene == "A1BG") %>%
+AASDHPPT_data <- covid_data %>%
+  filter(gene == "AASDHPPT") %>%
   select(expression) %>%
   mutate(expression = as.numeric(expression))  # Ensure expression is numeric
 
 # Plot histogram
-ggplot(a1bg_data, aes(x = expression)) +
+ggplot(AASDHPPT_data, aes(x =as.numeric(expression))) +
   geom_histogram(binwidth = 0.5, color = "black", fill = "blue") +
-  labs(title = "Histogram of Gene Expression for A1BG",
+  labs(title = "Histogram of Gene Expression for AASDHPPT",
        x = "Expression",
        y = "Frequency") +
-  theme_minimal()
-head(a1bg_data)
+  theme_minimal() #choosing preferred theme
 ```
 
 ## Plotting gene expression vs. ferritin (scatterplot)
 
 ```{r scatterplot}
-# subsetting the data so that it only contains rows where gene = A1BG and also the sex variable so it gets rid of the unknown rows
+# referred to these sites when plotting
+# https://r-graph-gallery.com/interactive-charts.html
+# https://r-graph-gallery.com/scatterplot.html
+# http://www.sthda.com/english/wiki/ggplot2-scatter-plots-quick-start-guide-r-software-and-data-visualization
+
+# using plotly to add interactive element to the graph
+#install.packages("plotly")
+library(plotly)
+
+# subsetting the data so that it only contains rows where gene = AASDHPPT and also the sex variable so it gets rid of the unknown rows
 data <- covid_data %>%
-  filter(gene == "A1BG")
-ggplot(data, aes(x = as.numeric(expression), y = as.numeric(ferritin.ng.ml.))) +
-    geom_point() + 
-  labs(title = "Observing A1BG Expression vs. Ferritin Levels in Covid Patients", x= "A1BG Expression" ,y = "Ferritin (ng/ml)")
-#convert both ferritin + expression to numeric
-#filter unknown variables and make them null/NA and then drop all the nulls
-typeof(data$expression)
-#for presentation can just describe the methods i used to make the graph and general interpretation
+  filter(gene == "AASDHPPT")
+
+# certain columns in the dataset with numeric values are stored in character types, setting them to numeric to be able to plot 
+data$expression <- as.numeric(data$expression)
+data$ferritin.ng.ml. <- as.numeric(data$ferritin.ng.ml. )
+
+scatter_plot <- ggplot(data, aes(x = expression, y = ferritin.ng.ml.)) +
+    geom_point(color = "purple",size = 3) + #increasing size of the data points on the graoh
+    geom_smooth(method = "lm", se = FALSE, color = "#33FFF7",linetype = "dashed") +
+  labs(title = "AASDHPPT Expression and Ferritin Levels Appear Slightly Negatively Correlated",
+      subtitle = "Exploring AASDHPPT Expression vs. Ferritin Levels in Human Subjects",
+       x= "AASDHPPT Expression" ,
+       y = "Ferritin (ng/mL)") +
+  theme_bw() # changing to preferred theme +
+
+interactive_scatter <- ggplotly(scatter_plot)
+
+# displaying regular graph and interactive
+scatter_plot
+interactive_scatter
 ```
 
-## Plotting gene expression vs. sex and disease status (boxplot)
+## Plotting gene expression vs.disease status by sex (boxplot)
 
 ```{r boxplot}
+# creating boxplot
 ggplot(data, aes(x = disease_status, y = as.numeric(expression), fill = sex)) +
-  geom_boxplot() 
+  geom_boxplot() +
+  scale_x_discrete(labels = c("disease state: COVID-19" = "COVID-19 Positive", "disease state: non-COVID-19" = "COVID-19 Negative"))+ # changing the x values to visually cleaner/shorter ones
+  labs(title = "Observing patterns of AASDHPPT Expression by Gender and Disease Status", x= "Disease Status" ,y = "AASDHPPT Expression", fill = "Patient Sex" ) + #adding labrls and titles to the graph
+  theme_bw() # changing to preferred theme
 ```
+
