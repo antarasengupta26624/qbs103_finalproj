@@ -80,6 +80,8 @@ all_data[all_data == " unknown"] <- NA
 
 # Drop rows with any NA values
 all_data <- na.omit(all_data)
+write.csv(all_data, file = "all_data", row.names = FALSE)
+
 
 #using select to subset https://www.educative.io/answers/what-is-the-select-function-in-r
 covid_data <- all_data %>% select(participant_id, gene,expression, ferritin.ng.ml., sex, disease_status)
