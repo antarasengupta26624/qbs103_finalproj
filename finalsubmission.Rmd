@@ -299,37 +299,47 @@ gene_box
 ## Heatmap 
 The code below generates a heatmap which includes at least 10 genes
 along with clustered rows and columns.
-```{r heatmap}
-# Creating a vector containing genes of interest
-heat_genes <- c('AASDHPPT',
-                'ABCF2-H2BE1', 
-                'ABHD17C', 
-                'A2ML1',
-                'A4GALT',
-                'ABCC10',
-                'ABCA13',
-                'ABHD14A',
-                'ABCC8',
-                'AARS2'
-                )
+```{r}
+# Transposing original gene dataframe
+genes_transposed <-as.data.frame(t(genes))
+# Getting rid of useless first row
+names(genes_transposed) <- genes_transposed[1,]
+# Add row names of genes transposed to a participant ID
+genes_transposed$participant_id <- row.names(genes_transposed)
+genes_transposed <- genes_transposed[-1,]
+# Merging new transposed gene matrix with series dataframe
+merged2 <- merge(genes_transposed,series,by='participant_id')
+```
 
-# Creating a new dataframe using spread to access the genes and values
-# Referred to this site to implement spread function:
-# https://tidyr.tidyverse.org/reference/spread.html
-newdf <- spread(all_data, key=gene, value=expression)
+```{r heatmap}
+# Creating a new dataframe with above merged dataframe
+newdf <- merged2
 
 # Accessing dataframe only has rows for genes of interest
-newdf <- newdf[,heat_genes]
+newdf3 <- as.data.frame(newdf[,20:30])
+newdf3 <-  mutate_all(newdf3, function(x) as.numeric(as.character(x)))
 
-# Changing all values in the dataframe to numeric 
-newdf <-  mutate_all(newdf, function(x) as.numeric(as.character(x)))
+
+# Creating annotations of categorical covariates
+annotations <- data.frame(Sex = merged2$sex,DiseaseStatus = merged2$disease_status)
+annotation_col <- list(Sex=c(' male' = 'orange',' female'='purple', ' unknown' = 'yellow'),
+                          DiseaseStatus= c('disease state: COVID-19'='green','disease state: non-COVID-19'='red'))
+unique(annotations$DiseaseStatus)
+
+# Adjusting rownames
+row.names(newdf3) <- row.names(merged2)
+row.names(annotations) <- row.names(merged2)
 
 # Creating the heatmap
-heat <- pheatmap(newdf,
+heat <- pheatmap(newdf3,
+         show_rownames = FALSE,
          cluster_rows = TRUE,
          cluster_cols = TRUE,
          main = "Gene Expression Heatmap",
-         show_rownames = FALSE)
+         annotation_row = annotations,
+         annotation_colors = annotation_col
+         )
+
 ```
 
 
